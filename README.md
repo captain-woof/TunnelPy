@@ -58,12 +58,14 @@ CaptainWoof
 
 ### FAQ
 - **Q: Why does relaunching the script sometimes throw an `can only concatenate str (not "int") to str` error?**
-**A:** I am myself not entirely sure about this, but I guess this has something to do with threading. I maybe wrong. This error gets thrown **ONLY** when you relaunch the script instantly after you had opened and closed it once.
+
+  **A:** I am myself not entirely sure about this, but I guess this has something to do with threading. I maybe wrong. This error gets thrown **ONLY** when you relaunch the script instantly after you had opened and closed it once.
 
   **Fix:** If you see the error, just wait for a few seconds to half a minute, and relaunch the script. It should work.
 
 - **Q: Why does HTTP requests fail when using the host URL in as `dhost`?**
-**A:** I have seen errors happening sometimes when host URLs are used.
+
+  **A:** I have seen errors happening sometimes when host URLs are used.
 
   **Fix:** If you see errors, use the IP of the destination host in 'dhost'.
 
