@@ -44,7 +44,7 @@ Say you are at 10.0.0.3, and 10.0.0.8 has an internal service running on its loo
 
 
 - **Example 2:**
-  Say you are at 10.0.0.3, and 10.0.0.8 is allowed by firewall to access a service running on port 7878 of another host 10.0.0.16 (connected to 10.0.0.8), but you are not. You can only access 10.0.0.8. You cannot directly access this from 0.0.0.3, but using 10.0.0.8 as the middle-man, you can. Say you want to have this service exposed on 10.0.0.8:4444.
+  Say you are at 10.0.0.3, and 10.0.0.8 is allowed by firewall to access a service running on port 7878 of another host 10.0.0.16 (connected to 10.0.0.8), but you are not. You can only access 10.0.0.8. You cannot directly access this from 10.0.0.3, but using 10.0.0.8 as the middle-man, you can. Say you want to have this service exposed on 10.0.0.8:4444.
 
   For this, you execute the script on 10.0.0.8 as:
   ```
