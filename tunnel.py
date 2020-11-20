@@ -3,125 +3,170 @@ import argparse
 import threading
 import random
 
+
 class TunnelPy:
-    def __init__(self,mhost,mport,dhost,dport,verbose):
+    def __init__(self, mhost, mport, dhost, dport, verbose, quiet,timeout):
+        self.timeout = timeout  # recv timeout
+        self.backlog = 30  # how many pending connections queue will hold
+        self.buffer = 2048  # Receive in chunks
+
         self.mhost = mhost
         self.mport = mport
         self.dhost = dhost
         self.dport = dport
-        self.verbose = verbose
 
-        self.backlog = 30 # how many pending connections queue will hold
-        self.buffer = 2048 # Receive in chunks
+        self.middle_man = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.verbose = verbose
+        self.quiet = quiet
 
         self.colorAndFormat = ColorAndFormat()
 
-    def on_receive(self,csock,caddr,random_id): # Thread callback
+    def on_receive(self, csock, caddr, random_id):  # Thread callback
         # Receive req from client
         try:
-            data = csock.recv(2048)
+            data_bytes = []
+            while True:
+                try:
+                    data = csock.recv(self.buffer)
+                    if len(data) == 0:
+                        break
+                    data_bytes.append(data)
+                except socket.timeout:
+                    break
+            data = b"".join(data_bytes)
+
             if len(data) == 0:
-                print(self.colorAndFormat.Bluebg("[>>] Blank request received from client " + caddr[0] + ':' + str(caddr[1]) + ' | ID:#' + random_id))
-                print(self.colorAndFormat.Yellowbg2("[!] Hence, taking no action") + '\n')
+                if not self.quiet:
+                    print(self.colorAndFormat.Bluebg("[>>] Blank request received from client " + caddr[0] + ':' + str(
+                        caddr[1]) + ' | ID:#' + random_id))
+                    print(self.colorAndFormat.Yellowbg2("[!] Hence, taking no action") + '\n')
                 return
 
         except Exception as e:
             if csock:
-                csock.close()
+                csock.shutdown(0)
             print(self.colorAndFormat.Redbg(str(e)))
             return
 
-        print(self.colorAndFormat.Bluebg("[>>] Received request from client " + caddr[0] + ':' + str(caddr[1]) +  ' | ID:#' + random_id) + '\n')
-        if self.verbose:
-            try:
-                print(self.colorAndFormat.Blue2(data.decode() + '\n'))
-            except UnicodeDecodeError:
-                print(self.colorAndFormat.Yellowbg2("[!] Cannot display received request here"))
+        if not self.quiet:
+            print(self.colorAndFormat.Bluebg(
+                "[>>] Received request from client " + caddr[0] + ':' + str(caddr[1]) + ' | ID:#' + random_id) + '\n')
+            if self.verbose:
+                try:
+                    print(self.colorAndFormat.Blue2(data.decode() + '\n'))
+                except UnicodeDecodeError:
+                    print(self.colorAndFormat.Yellowbg2("[!] Cannot display received request here"))
 
         # Forward req to dhost:dport
-        mtd = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-        mtd.connect_ex((self.dhost,self.dport))
+        mtd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        mtd.connect_ex((self.dhost, self.dport))
         try:
             mtd.sendall(data)
             if self.verbose:
-                print(self.colorAndFormat.Orangebg("[->] Relayed to " + self.dhost + ':' + str(self.dport) + ' | ID:#' + random_id) + '\n')
+                print(self.colorAndFormat.Orangebg(
+                    "[->] Relayed to " + self.dhost + ':' + str(self.dport) + ' | ID:#' + random_id) + '\n')
         except Exception as e:
             if mtd:
-                mtd.close()
+                mtd.shutdown(0)
             if csock:
-                csock.close()
+                csock.shutdown(0)
+            print(self.colorAndFormat.Redbg(str()))
+            return
+
+        # Receive reply from dhost:dport
+        try:
+            data_bytes = []
+            while True:
+                try:
+                    data = mtd.recv(self.buffer)
+                    if len(data) == 0:
+                        break
+                    data_bytes.append(data)
+                except socket.timeout:
+                    break
+            data = b"".join(data_bytes)
+
+            if not data:
+                if not self.quiet:
+                    print(self.colorAndFormat.Greenbg2("[!] Blank reply received from " + self.dhost + ':' + str(
+                        self.dport) + ' | ID:#' + random_id) + '\n')
+                return
+
+            if self.verbose:
+                print(self.colorAndFormat.Greenbg2(
+                    "[<-] Received reply from " + self.dhost + ':' + str(self.dport) + ' | ID:#' + random_id))
+                try:
+                    print(self.colorAndFormat.Green2(data.decode() + '\n'))
+                except UnicodeDecodeError:
+                    print(self.colorAndFormat.Redbg("[!] Cannot display received reply"))
+
+        except Exception as e:
+            if mtd:
+                mtd.shutdown(0)
+            if csock:
+                csock.shutdown(0)
             print(self.colorAndFormat.Redbg(str(e)))
             return
 
-        # Receive reply from dhost:dport, forward to client on the parallel
+        # forward to client
         try:
-            data = mtd.recv(2048)
-            if len(data) == 0:
-                print(self.colorAndFormat.Greenbg2("[!] Blank reply received from " + self.dhost + ':' + str(self.dport) + ' | ID:#' + random_id) + '\n')
-                return
-
-            while len(data) != 0:
-                if self.verbose:
-                    print(self.colorAndFormat.Greenbg2("[<-] Received reply from " + self.dhost + ':' + str(self.dport) + ' | ID:#' + random_id))
-                    try:
-                        print(self.colorAndFormat.Green2(data.decode() + '\n'))
-                    except UnicodeDecodeError:
-                        print(self.colorAndFormat.Redbg("[!] Cannot display received reply"))
-                try:
-                    csock.sendall(data)
-                    data = mtd.recv(2048)
-                except Exception as e:
-                    print(self.colorAndFormat.Redbg(str(e)))
-                    return
-
+            csock.sendall(data)
         except Exception as e:
-            if mtd:
-                mtd.close()
-            if csock:
-                csock.close()
             print(self.colorAndFormat.Redbg(str(e)))
             return
 
         # Closing connections
         try:
-            mtd.close()
-            csock.close()
-            print(self.colorAndFormat.Orangebg("[✓] Relayed reply to client successfully! | ID:#" + random_id) + '\n')
+            mtd.shutdown(0)
+            csock.shutdown(0)
+            if not self.quiet:
+                print(
+                    self.colorAndFormat.Orangebg("[✓] Relayed reply to client successfully! | ID:#" + random_id) + '\n')
         except Exception as e:
             print(self.colorAndFormat.Redbg(str(e)))
 
     def start_listener(self):
-        self.middle_man = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.middle_man.bind((self.mhost, self.mport))
             self.middle_man.listen(self.backlog)
         except Exception as e:
-            print(self.colorAndFormat.Redbg(str('Port ' + self.mport) + ' is already in use!'))
+            print(self.colorAndFormat.Redbg('Port ' + str(self.mport) + ' is already in use!'))
             return
         print(self.colorAndFormat.Orangebg(banner) + '\n')
+
+        print(self.colorAndFormat.Yellowbg2("GLOBAL TIMEOUT: " + str(self.timeout) + ' second(s)'))
+
         if self.verbose:
             print(self.colorAndFormat.Yellowbg2("VERBOSE MODE: ON"))
         else:
             print(self.colorAndFormat.Yellowbg2("VERBOSE MODE: OFF"))
+
+        if self.quiet:
+            print(self.colorAndFormat.Yellowbg2("QUIET MODE: ON"))
+        else:
+            print(self.colorAndFormat.Yellowbg2("QUIET MODE: OFF"))
+
         print(self.colorAndFormat.Selected("[..] Listening on [any] on port " + str(self.mport) + '\n'))
 
         # Server spin
         while True:
             try:
-                random_id = str(random.randint(1,999999))
-                client_sock,client_addr = self.middle_man.accept()
-                thread = threading.Thread(target=self.on_receive,args=(client_sock,client_addr,random_id))
+                random_id = str(random.randint(1, 999999))
+                client_sock, client_addr = self.middle_man.accept()
+                client_sock.settimeout(self.timeout)
+                thread = threading.Thread(target=self.on_receive, args=(client_sock, client_addr, random_id))
                 thread.start()
 
             except KeyboardInterrupt:
                 if self.middle_man:
-                    self.middle_man.close()
+                    self.middle_man.shutdown(0)
                 print(self.colorAndFormat.Selected("\n[✓] TunnelPy server stopped!"))
                 break
 
             except Exception as e:
                 if self.middle_man:
-                    self.middle_man.close()
+                    self.middle_man.shutdown(0)
                 print(self.colorAndFormat.Redbg(str(e)))
                 break
 
@@ -130,9 +175,9 @@ class ColorAndFormat:
     def __init__(self):
         # Format
         self.__selected = '\33[7m'
-        self.__reset  = '\033[0m'
-        self.__blue2   = '\33[94m'
-        self.__redbg    = '\33[41m'
+        self.__reset = '\033[0m'
+        self.__blue2 = '\33[94m'
+        self.__redbg = '\33[41m'
         self.__bold = '\33[1m'
         self.__greenbg2 = '\33[102m'
         self.__green2 = '\33[92m'
@@ -155,10 +200,10 @@ class ColorAndFormat:
     def Greenbg2(self, text):
         return self.__bold + self.__greenbg2 + text + self.__reset
 
-    def Selected(self,text):
+    def Selected(self, text):
         return self.__selected + text + self.__reset
 
-    def Blue2(self,text):
+    def Blue2(self, text):
         return self.__blue2 + text + self.__reset
 
     def Redbg(self, text):
@@ -201,6 +246,8 @@ Arguments:
 --tunnel      : Precede the tunnelpy host and port arguments by this
                 Format: --tunnel <mport>:<dhost ip>:<dport>
 --verbose, -v : Start the tunnelpy server in verbose mode (shows the data in transit)
+--quiet, -q   : Start the tunnelpy server in verbose mode (shows no transit information)
+--timeout, -t : Set the global timeout for receiving data (default: 1 second)
 --help, -h    : Get this help message
 --examples    : See some usage examples
 """
@@ -235,17 +282,22 @@ communicate with 10.0.0.8:4444 to actually talk to 10.0.0.16:7878.
 
 epilogue = "Author: CaptainWoof. DM me @realCaptainWoof on Twitter for any bugs or suggestions."
 
-parser = argparse.ArgumentParser(description=description, epilog=epilogue, allow_abbrev=False,add_help=False)
-parser.add_argument('-v',"--verbose",action='store_true',help="Start in verbose mode")
+parser = argparse.ArgumentParser(description=description, epilog=epilogue, allow_abbrev=False, add_help=False)
+parser.add_argument('-t', '--timeout', action='store', help='Set global timeout',required=False,type=int,default=1)
+
+verbose_quiet = parser.add_mutually_exclusive_group(required=False)
+verbose_quiet.add_argument('-v', "--verbose", action='store_true', help="Start in verbose mode")
+verbose_quiet.add_argument('-q', '--quiet', action='store_true', help="Start in quiet mode")
+
 mutually_exclusive_params = parser.add_mutually_exclusive_group(required=True)
-mutually_exclusive_params.add_argument('--help',"-h",action='store_true',help="Show detailed usage info")
-mutually_exclusive_params.add_argument("--examples",action='store_true',help="Show usage examples")
-mutually_exclusive_params.add_argument("--tunnel",action='store',help="Start the tunnelpy",type=str)
+mutually_exclusive_params.add_argument('--help', "-h", action='store_true', help="Show detailed usage info")
+mutually_exclusive_params.add_argument("--examples", action='store_true', help="Show usage examples")
+mutually_exclusive_params.add_argument("--tunnel", action='store', help="Start the tunnelpy", type=str)
 
 args = parser.parse_args()
 verbose = args.verbose
+quiet = args.quiet
 colorAndFormat = ColorAndFormat()
-
 
 if args.help:
     print(colorAndFormat.Greenbg2(banner) + '\n' + usage)
@@ -261,9 +313,10 @@ elif args.tunnel:
         dhost = args.tunnel.split(':')[1]
         dport = int(args.tunnel.split(':')[2])
 
-        tunnelpy = TunnelPy('', mport, dhost, dport,verbose)
+        tunnelpy = TunnelPy('', mport, dhost, dport, verbose, quiet,args.timeout)
         tunnelpy.start_listener()
 
     except Exception as e:
         print(colorAndFormat.Redbg(str(e)))
         exit()
+

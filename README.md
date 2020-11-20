@@ -5,7 +5,7 @@
 - **[Detailed info](#detailed-info)**
 - **[Usage examples](#usage-examples)**
 - **[Author](#author)**
-- **[FAQ](#faq)**
+- **[Known issues](#known-issues)**
 
 ### Introduction
 TunnelPy simply exposes any service, running internally in a network/host, to the outside.
@@ -24,9 +24,11 @@ Also, the TunnelPy server uses threading, so you can send multiple requests, and
 --tunnel      : Precede the tunnelpy host and port arguments by this
                 Format: --tunnel <mport>:<dhost ip>:<dport>
 --verbose, -v : Start the tunnelpy server in verbose mode (shows the data in transit)
+--quiet, -q   : Start the tunnelpy server in verbose mode (shows no transit information)
+--timeout, -t : Set the global timeout for receiving data (default: 1 second)
 --help, -h    : Get this help message
 --examples    : See some usage examples
-``````
+```
 
 ### Usage examples
 
@@ -40,7 +42,7 @@ Say you are at 10.0.0.3, and 10.0.0.8 has an internal service running on its loo
 
   This will establish a tunnel between **10.0.0.8:4444 <--> 127.0.0.1:7878**, and you can communicate with 10.0.0.8:4444 to actually talk to 127.0.0.1:7878.
   
-  Do note that you will also see the request and response data in transit because of '-v'.
+  Do note that you will also see the request and response data in transit because of '-v'. Also, default timeout of 1 second is used, since '-t' is not used.
 
 
 - **Example 2:**
@@ -48,21 +50,17 @@ Say you are at 10.0.0.3, and 10.0.0.8 has an internal service running on its loo
 
   For this, you execute the script on 10.0.0.8 as:
   ```
-  tunnel.py --tunnel 4444:10.0.0.16:7878
+  tunnel.py -t 3 --tunnel 4444:10.0.0.16:7878
   ```
   This will establish a tunnel between **10.0.0.8:4444 <--> 10.0.0.16:7878**, and you can communicate with 10.0.0.8:4444 to actually talk to 10.0.0.16:7878.
+
+  Do note that the timeout for all receive operations is explicitly set to 3 seconds here.
 
 ### Author
 CaptainWoof
 **Twitter:** [@realCaptainWoof](https://twitter.com/realCaptainWoof)
 
-### FAQ
-- **Q: Why does relaunching the script sometimes throw an `can only concatenate str (not "int") to str` error?**
-
-  **A:** I am myself not entirely sure about this, but I guess this has something to do with threading. I maybe wrong. This error gets thrown **ONLY** when you relaunch the script instantly after you had opened and closed it once.
-
-  **Fix:** If you see the error, just wait for a few seconds to half a minute, and relaunch the script. It should work.
-
+### Known issues
 - **Q: Why does HTTP requests fail when using the host URL in as `dhost`?**
 
   **A:** I have seen errors happening sometimes when host URLs are used.
