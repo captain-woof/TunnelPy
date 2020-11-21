@@ -24,7 +24,7 @@ Also, the TunnelPy server uses threading, so you can send multiple requests, and
 --tunnel      : Precede the tunnelpy host and port arguments by this
                 Format: --tunnel <mport>:<dhost ip>:<dport>
 --verbose, -v : Start the tunnelpy server in verbose mode (shows the data in transit)
---quiet, -q   : Start the tunnelpy server in verbose mode (shows no transit information)
+--quiet, -q   : Start the tunnelpy server in quiet mode (shows no transit information)
 --timeout, -t : Set the global timeout for receiving data (default: 1 second)
 --help, -h    : Get this help message
 --examples    : See some usage examples
@@ -58,12 +58,13 @@ Say you are at 10.0.0.3, and 10.0.0.8 has an internal service running on its loo
 
 ### Author
 CaptainWoof
+
 **Twitter:** [@realCaptainWoof](https://twitter.com/realCaptainWoof)
 
 ### Known issues
-- **Q: Why does HTTP requests fail when using the host URL in as `dhost`?**
+- **Q: Why does HTTP requests fail when using the URL with hostname/domain name in as `dhost`?**
 
-  **A:** I have seen errors happening sometimes when host URLs are used.
+  **A:** I have seen errors happening sometimes when such URLs are used. It is most probably an issue of the tunnel only tunneling between the specified ports, which means that there is nothing that resolves the hostname (DNS).
 
-  **Fix:** If you see errors, use the IP of the destination host in 'dhost'.
+  **Fix:** If you see errors, use the IP address of the destination host in 'dhost' instead of the name. Alternatively, you can try using tunnelpy to tunnel your DNS requests as well, though *this has not yet been tested*.
 

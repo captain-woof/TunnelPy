@@ -246,7 +246,7 @@ Arguments:
 --tunnel      : Precede the tunnelpy host and port arguments by this
                 Format: --tunnel <mport>:<dhost ip>:<dport>
 --verbose, -v : Start the tunnelpy server in verbose mode (shows the data in transit)
---quiet, -q   : Start the tunnelpy server in verbose mode (shows no transit information)
+--quiet, -q   : Start the tunnelpy server in quiet mode (shows no transit information)
 --timeout, -t : Set the global timeout for receiving data (default: 1 second)
 --help, -h    : Get this help message
 --examples    : See some usage examples
